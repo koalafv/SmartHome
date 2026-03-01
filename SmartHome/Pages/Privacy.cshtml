@@ -1,0 +1,14 @@
+﻿@page
+@model PrivacyModel
+
+@{
+    ViewData["Title"] = "Lista Użytkowników";
+}
+<h1>@ViewData["Title"]</h1>
+
+@foreach (var x in Model.Users)
+{
+    <p>ID: @x.UsrId | Nazwa: @x.UsrLogin</p>
+}
+
+<p>Use this page to detail your site's privacy policy.</p>
