@@ -9,6 +9,7 @@
 <html lang="pl">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Smart Doniczka - Live Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
 
@@ -82,7 +83,6 @@
             gap: 10px;
         }
 
-        /* Wskaźnik połączenia SignalR */
         .conn-status {
             display: inline-block;
             width: 12px;
@@ -150,24 +150,21 @@
             animation: pulse 1.5s infinite;
         }
 
+        /* [LOG] Poprawiony zapis dla silnika Razor */
         @@keyframes pulse {
-            0%
+            0% {
+                opacity: 1;
+            }
 
-        {
-            opacity: 1;
+            50% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
         }
 
-        50% {
-            opacity: 0.6;
-        }
-
-        100% {
-            opacity: 1;
-        }
-
-        }
-
-        /* Sekcja Wykresu i Sterowania */
         .controls-card {
             background: #111a15;
             border: 1px solid #27ae60;
@@ -208,7 +205,6 @@
                 border-color: #2ecc71;
             }
 
-        /* Toggle Switch dla Auto Mode */
         .switch {
             position: relative;
             display: inline-block;
@@ -281,6 +277,48 @@
                 box-shadow: 0 0 20px rgba(52, 152, 219, 0.6);
             }
 
+        /* ========================================================= */
+        /* [LOG] MEDIA QUERIES - MAGIA RESPONSYWNOŚCI DLA TELEFONÓW */
+        /* ========================================================= */
+        @@media (max-width: 768px) {
+            .navbar {
+                flex-direction: column; /* Układamy logo i wyloguj jedno pod drugim */
+                gap: 15px;
+                padding: 15px;
+            }
+
+            .dashboard-container {
+                padding: 20px 15px; /* Mniejsze marginesy boczne na małym ekranie */
+            }
+
+            .controls-grid {
+                grid-template-columns: 1fr; /* Zbijamy kontrolki w jedną kolumnę */
+                gap: 15px;
+                align-items: center;
+            }
+
+            .input-group {
+                width: 100%;
+                text-align: center;
+            }
+
+            .btn-action {
+                width: 100%; /* Przyciski rozciągają się na pełną szerokość ekranu */
+                height: 50px; /* Nieco wyższe, żeby łatwiej trafić palcem */
+            }
+
+            .stat-value {
+                font-size: 2em; /* Minimalnie mniejsza cyfra czujnika */
+            }
+
+            .section-title {
+                font-size: 1.2em; /* Dopasowanie nagłówków */
+            }
+
+            .stat-card {
+                padding: 15px; /* Kompaktowe kafelki */
+            }
+        }
     </style>
 </head>
 <body>
@@ -288,7 +326,7 @@
     <nav class="navbar">
         <div class="brand">🌱 <span>EcoDashboard</span></div>
         <div class="user-info">
-            <span>Zalogowano: <strong>@User.Identity.Name</strong></span>
+            <span><strong>@User.Identity.Name</strong></span>
             <form asp-page-handler="Logout" method="post" style="margin: 0;">
                 <button type="submit" class="logout-btn">Wyloguj</button>
             </form>
@@ -330,7 +368,7 @@
 
         <h2 class="section-title">📈 Historia Temperatury</h2>
         <div class="controls-card">
-            <canvas id="tempChart" height="80"></canvas>
+            <canvas id="tempChart" height="100"></canvas>
         </div>
 
         <h2 class="section-title">⚙️ Ustawienia Mikrokontrolera</h2>
@@ -344,7 +382,7 @@
                     <label>CZAS POMPY (ms)</label>
                     <input type="number" id="in-duration" value="2000" step="100" />
                 </div>
-                <div class="input-group" style="text-align: center;">
+                <div class="input-group">
                     <label>TRYB AUTOMATYCZNY</label>
                     <label class="switch">
                         <input type="checkbox" id="in-auto" checked>
@@ -352,16 +390,15 @@
                     </label>
                 </div>
                 <div class="input-group">
-                    <button class="btn-action" onclick="sendSettings()">[ ZAPISZ USTAWIENIA ]</button>
+                    <button class="btn-action" onclick="sendSettings()">[ ZAPISZ ]</button>
                 </div>
             </div>
 
-            <button class="btn-action btn-force" onclick="forceWater()">💦 [ WYMUŚ PODLEWANIE NATYCHMIAST ] 💦</button>
+            <button class="btn-action btn-force" onclick="forceWater()">💦 [ WYMUŚ PODLEWANIE ] 💦</button>
         </div>
     </div>
 
     <script>
-        // 1. Zaciągnięcie historii z bazy (przez Razor Pages) do wykresu
         const initialLabels = [
             @if (Model.History != null)
             {
@@ -382,7 +419,6 @@
             }
         ];
 
-        // 2. Rysowanie wykresu Chart.js
         const ctx = document.getElementById('tempChart').getContext('2d');
         const tempChart = new Chart(ctx, {
             type: 'line',
@@ -400,6 +436,7 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false, // [LOG] Pozwala na lepsze skalowanie wykresu na telefonie
                 scales: {
                     y: { grid: { color: '#23352a' }, ticks: { color: '#a0aec0' } },
                     x: { grid: { color: '#23352a' }, ticks: { color: '#a0aec0' } }
@@ -408,41 +445,35 @@
             }
         });
 
-        // 3. Konfiguracja połączenia SignalR z Hubem
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/pothub")
             .withAutomaticReconnect()
             .build();
 
-        // 4. Reakcja na przyjście nowych danych z doniczki
         connection.on("UpdateStatus", function (soilMoisture, tankLevel, temperature, pressure) {
 
-            // Aktualizacja kafelków na żywo
             document.getElementById("val-soil").innerText = soilMoisture;
             document.getElementById("val-temp").innerText = temperature.toFixed(1);
             document.getElementById("val-press").innerText = pressure;
 
-            // Logika kafelka wody (1 = pełny, 0 = pusty)
             const waterValEl = document.getElementById("val-water");
             const waterStatusEl = document.getElementById("status-water");
 
             if(tankLevel > 0) {
                 waterValEl.innerText = "PEŁNY"; waterValEl.style.color = "#3498db";
-                waterStatusEl.innerText = "✓ Woda gotowa do pompowania"; waterStatusEl.className = "status-good";
+                waterStatusEl.innerText = "✓ Woda gotowa"; waterStatusEl.className = "status-good";
             } else {
                 waterValEl.innerText = "PUSTY"; waterValEl.style.color = "#e74c3c";
-                waterStatusEl.innerText = "⚠ Należy dolać wody do zbiornika!"; waterStatusEl.className = "status-warn";
+                waterStatusEl.innerText = "⚠ Dolać wody!"; waterStatusEl.className = "status-warn";
             }
 
-            // Ostrzeżenie o suchej glebie
             const soilStatusEl = document.getElementById("status-soil");
             if(soilMoisture < 20) {
-                soilStatusEl.innerText = "⚠ Gleba bardzo sucha!"; soilStatusEl.className = "status-warn";
+                soilStatusEl.innerText = "⚠ Bardzo sucho!"; soilStatusEl.className = "status-warn";
             } else {
                 soilStatusEl.innerText = "✓ Wilgotność w normie"; soilStatusEl.className = "status-good";
             }
 
-            // Aktualizacja wykresu na żywo
             const now = new Date();
             const timeString = now.getHours().toString().padStart(2, '0') + ':' +
                                now.getMinutes().toString().padStart(2, '0') + ':' +
@@ -451,7 +482,6 @@
             tempChart.data.labels.push(timeString);
             tempChart.data.datasets[0].data.push(temperature);
 
-            // Zostawiamy max 15 ostatnich pomiarów na wykresie, by zachować czytelność
             if(tempChart.data.labels.length > 15) {
                 tempChart.data.labels.shift();
                 tempChart.data.datasets[0].data.shift();
@@ -459,7 +489,6 @@
             tempChart.update();
         });
 
-        // 5. Uruchomienie nasłuchiwania SignalR
         connection.start().then(function () {
             console.log("Połączono z Hubem SignalR!");
             document.getElementById("connIndicator").classList.add("conn-active");
@@ -467,20 +496,19 @@
             return console.error(err.toString());
         });
 
-        // 6. Funkcje przycisków
         function sendSettings() {
             const threshold = parseInt(document.getElementById("in-threshold").value);
             const duration = parseInt(document.getElementById("in-duration").value);
             const isAuto = document.getElementById("in-auto").checked;
 
             connection.invoke("SendSettingsToDevice", threshold, isAuto, duration)
-                .then(() => alert("Ustawienia wysłane do modułu wykonawczego!"))
+                .then(() => alert("Wysłano!"))
                 .catch(err => console.error(err.toString()));
         }
 
         function forceWater() {
             connection.invoke("ForceWatering")
-                .then(() => alert("Wymuszono działanie pompy!"))
+                .then(() => alert("Wymuszono podlewanie!"))
                 .catch(err => console.error(err.toString()));
         }
     </script>
