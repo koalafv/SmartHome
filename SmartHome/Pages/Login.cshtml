@@ -1,0 +1,148 @@
+﻿@page
+@model LoginModel
+@{
+    ViewData["Title"] = "Logowanie";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Doniczka - Logowanie</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #0f1714;
+            background-image: radial-gradient(circle at 50% 0%, #1a3325 0%, transparent 70%);
+            color: #e2e8f0;
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .login-box {
+            background: rgba(20, 30, 25, 0.8);
+            backdrop-filter: blur(15px);
+            border: 1px solid #27ae60;
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 10px 30px rgba(39, 174, 96, 0.15);
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px #2ecc71;
+        }
+
+        h1 {
+            color: #2ecc71;
+            font-size: 1.4em;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin-top: 0;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+            .input-group label {
+                display: block;
+                font-size: 0.8em;
+                color: #a0aec0;
+                margin-bottom: 8px;
+                font-weight: 600;
+            }
+
+            .input-group input {
+                width: 100%;
+                padding: 14px;
+                background: rgba(0, 0, 0, 0.3);
+                border: 1px solid #3d5a4a;
+                border-radius: 8px;
+                color: #fff;
+                font-family: 'Montserrat', sans-serif;
+                box-sizing: border-box;
+                transition: 0.3s;
+            }
+
+                .input-group input:focus {
+                    outline: none;
+                    border-color: #2ecc71;
+                    box-shadow: 0 0 10px rgba(46, 204, 113, 0.2);
+                }
+
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: #000;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 1em;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+            .login-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+            }
+
+        .error-msg {
+            background: rgba(231, 76, 60, 0.1);
+            border-left: 4px solid #e74c3c;
+            color: #e74c3c;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 0.85em;
+            border-radius: 4px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <div class="logo-icon">🌱</div>
+        <h1>Smart Doniczka</h1>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="error-msg">@Model.ErrorMessage</div>
+        }
+
+        <form method="post">
+            <div class="input-group">
+                <label>NAZWA UŻYTKOWNIKA</label>
+                <input type="text" asp-for="Login" required autocomplete="off" />
+            </div>
+
+            <div class="input-group">
+                <label>HASŁO DOSTĘPU</label>
+                <input type="password" asp-for="Password" required />
+            </div>
+
+            <button type="submit" class="login-btn">Zaloguj się</button>
+        </form>
+    </div>
+
+</body>
+</html>

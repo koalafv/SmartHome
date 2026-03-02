@@ -6,9 +6,9 @@ namespace SmartHome.Pages
 {
     public class PrivacyModel : PageModel
     {
-        private readonly DoniczkaContext _context;
+        private readonly Models.ApplicationContext _context;
         public List<User> Users { get; set; } = new List<User>();
-        public PrivacyModel ( DoniczkaContext context )
+        public PrivacyModel ( Models.ApplicationContext context )
         {
             _context = context;
         }

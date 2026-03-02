@@ -1,12 +1,488 @@
 ﻿@page
 @model IndexModel
-
-
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Panel na Żywo";
+    Layout = null;
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8" />
+    <title>Smart Doniczka - Live Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            background-color: #0f1714;
+            color: #e2e8f0;
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            background: rgba(20, 30, 25, 0.95);
+            border-bottom: 1px solid #27ae60;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            color: #2ecc71;
+            font-weight: 800;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.9em;
+            color: #a0aec0;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+            padding: 6px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+            .logout-btn:hover {
+                background: #e74c3c;
+                color: #fff;
+            }
+
+        .dashboard-container {
+            padding: 40px 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            color: #fff;
+            margin-bottom: 25px;
+            font-weight: 600;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Wskaźnik połączenia SignalR */
+        .conn-status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #e74c3c;
+            box-shadow: 0 0 10px #e74c3c;
+            transition: 0.3s;
+        }
+
+        .conn-active {
+            background-color: #2ecc71;
+            box-shadow: 0 0 15px #2ecc71;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: linear-gradient(145deg, #16221c, #111a15);
+            border: 1px solid #23352a;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: 0.3s;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            color: #a0aec0;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: 800;
+            color: #fff;
+            margin: 10px 0;
+            transition: color 0.3s;
+        }
+
+        .stat-unit {
+            font-size: 0.4em;
+            color: #a0aec0;
+            font-weight: 400;
+        }
+
+        .status-good {
+            color: #2ecc71;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-warn {
+            color: #e74c3c;
+            font-size: 0.85em;
+            font-weight: 600;
+            animation: pulse 1.5s infinite;
+        }
+
+        @@keyframes pulse {
+            0%
+
+        {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.6;
+        }
+
+        100% {
+            opacity: 1;
+        }
+
+        }
+
+        /* Sekcja Wykresu i Sterowania */
+        .controls-card {
+            background: #111a15;
+            border: 1px solid #27ae60;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 40px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 20px;
+            align-items: end;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.8em;
+            color: #a0aec0;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .input-group input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #3d5a4a;
+            border-radius: 8px;
+            color: #fff;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-weight: 600;
+        }
+
+            .input-group input[type="number"]:focus {
+                outline: none;
+                border-color: #2ecc71;
+            }
+
+        /* Toggle Switch dla Auto Mode */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+            .switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #3d5a4a;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 26px;
+                width: 26px;
+                left: 4px;
+                bottom: 4px;
+                background-color: white;
+                transition: .4s;
+                border-radius: 50%;
+            }
+
+        input:checked + .slider {
+            background-color: #2ecc71;
+        }
+
+            input:checked + .slider:before {
+                transform: translateX(26px);
+            }
+
+        .btn-action {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.3s;
+            height: 43px;
+        }
+
+            .btn-action:hover {
+                box-shadow: 0 0 15px rgba(46, 204, 113, 0.4);
+            }
+
+        .btn-force {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+            color: #fff;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+            .btn-force:hover {
+                box-shadow: 0 0 20px rgba(52, 152, 219, 0.6);
+            }
+
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="brand">🌱 <span>EcoDashboard</span></div>
+        <div class="user-info">
+            <span>Zalogowano: <strong>@User.Identity.Name</strong></span>
+            <form asp-page-handler="Logout" method="post" style="margin: 0;">
+                <button type="submit" class="logout-btn">Wyloguj</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+
+        <h2 class="section-title">
+            Stan Rośliny na Żywo
+            <span id="connIndicator" class="conn-status" title="Status połączenia SignalR"></span>
+        </h2>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header"><span>WILGOTNOŚĆ GLEBY</span> <span>🌱</span></div>
+                <div class="stat-value" style="color:#2ecc71;"><span id="val-soil">--</span><span class="stat-unit">%</span></div>
+                <div id="status-soil" class="status-good">Oczekiwanie na dane...</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header"><span>TEMPERATURA</span> <span>🌡️</span></div>
+                <div class="stat-value" style="color:#e67e22;"><span id="val-temp">--</span><span class="stat-unit">°C</span></div>
+                <div class="status-good">Odczyt z sensora otoczenia</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header"><span>CIŚNIENIE ATM.</span> <span>☁️</span></div>
+                <div class="stat-value" style="color:#9b59b6;"><span id="val-press">--</span><span class="stat-unit"> hPa</span></div>
+                <div class="status-good">Dane meteo z ESP</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header"><span>ZBIORNIK WODY</span> <span>🚰</span></div>
+                <div class="stat-value" style="color:#e74c3c;" id="val-water">BRAK</div>
+                <div id="status-water" class="status-warn">Sprawdzanie stanu...</div>
+            </div>
+        </div>
+
+        <h2 class="section-title">📈 Historia Temperatury</h2>
+        <div class="controls-card">
+            <canvas id="tempChart" height="80"></canvas>
+        </div>
+
+        <h2 class="section-title">⚙️ Ustawienia Mikrokontrolera</h2>
+        <div class="controls-card">
+            <div class="controls-grid">
+                <div class="input-group">
+                    <label>PRÓG PODLEWANIA (%)</label>
+                    <input type="number" id="in-threshold" value="30" min="0" max="100" />
+                </div>
+                <div class="input-group">
+                    <label>CZAS POMPY (ms)</label>
+                    <input type="number" id="in-duration" value="2000" step="100" />
+                </div>
+                <div class="input-group" style="text-align: center;">
+                    <label>TRYB AUTOMATYCZNY</label>
+                    <label class="switch">
+                        <input type="checkbox" id="in-auto" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="input-group">
+                    <button class="btn-action" onclick="sendSettings()">[ ZAPISZ USTAWIENIA ]</button>
+                </div>
+            </div>
+
+            <button class="btn-action btn-force" onclick="forceWater()">💦 [ WYMUŚ PODLEWANIE NATYCHMIAST ] 💦</button>
+        </div>
+    </div>
+
+    <script>
+        // 1. Zaciągnięcie historii z bazy (przez Razor Pages) do wykresu
+        const initialLabels = [
+            @if (Model.History != null)
+            {
+                    foreach (var item in Model.History)
+                    {
+                            <text>'@item.ReadingDate.ToString("HH:mm:ss")',</text>
+                    }
+            }
+        ];
+
+        const initialData = [
+            @if (Model.History != null)
+            {
+                    foreach (var item in Model.History)
+                    {
+                            <text>@(item.Temperature.ToString(System.Globalization.CultureInfo.InvariantCulture)),</text>
+                    }
+            }
+        ];
+
+        // 2. Rysowanie wykresu Chart.js
+        const ctx = document.getElementById('tempChart').getContext('2d');
+        const tempChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: initialLabels,
+                datasets: [{
+                    label: 'Temperatura (°C)',
+                    data: initialData,
+                    borderColor: '#e67e22',
+                    backgroundColor: 'rgba(230, 126, 34, 0.2)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { grid: { color: '#23352a' }, ticks: { color: '#a0aec0' } },
+                    x: { grid: { color: '#23352a' }, ticks: { color: '#a0aec0' } }
+                },
+                plugins: { legend: { labels: { color: '#fff' } } }
+            }
+        });
+
+        // 3. Konfiguracja połączenia SignalR z Hubem
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/pothub")
+            .withAutomaticReconnect()
+            .build();
+
+        // 4. Reakcja na przyjście nowych danych z doniczki
+        connection.on("UpdateStatus", function (soilMoisture, tankLevel, temperature, pressure) {
+
+            // Aktualizacja kafelków na żywo
+            document.getElementById("val-soil").innerText = soilMoisture;
+            document.getElementById("val-temp").innerText = temperature.toFixed(1);
+            document.getElementById("val-press").innerText = pressure;
+
+            // Logika kafelka wody (1 = pełny, 0 = pusty)
+            const waterValEl = document.getElementById("val-water");
+            const waterStatusEl = document.getElementById("status-water");
+
+            if(tankLevel > 0) {
+                waterValEl.innerText = "PEŁNY"; waterValEl.style.color = "#3498db";
+                waterStatusEl.innerText = "✓ Woda gotowa do pompowania"; waterStatusEl.className = "status-good";
+            } else {
+                waterValEl.innerText = "PUSTY"; waterValEl.style.color = "#e74c3c";
+                waterStatusEl.innerText = "⚠ Należy dolać wody do zbiornika!"; waterStatusEl.className = "status-warn";
+            }
+
+            // Ostrzeżenie o suchej glebie
+            const soilStatusEl = document.getElementById("status-soil");
+            if(soilMoisture < 20) {
+                soilStatusEl.innerText = "⚠ Gleba bardzo sucha!"; soilStatusEl.className = "status-warn";
+            } else {
+                soilStatusEl.innerText = "✓ Wilgotność w normie"; soilStatusEl.className = "status-good";
+            }
+
+            // Aktualizacja wykresu na żywo
+            const now = new Date();
+            const timeString = now.getHours().toString().padStart(2, '0') + ':' +
+                               now.getMinutes().toString().padStart(2, '0') + ':' +
+                               now.getSeconds().toString().padStart(2, '0');
+
+            tempChart.data.labels.push(timeString);
+            tempChart.data.datasets[0].data.push(temperature);
+
+            // Zostawiamy max 15 ostatnich pomiarów na wykresie, by zachować czytelność
+            if(tempChart.data.labels.length > 15) {
+                tempChart.data.labels.shift();
+                tempChart.data.datasets[0].data.shift();
+            }
+            tempChart.update();
+        });
+
+        // 5. Uruchomienie nasłuchiwania SignalR
+        connection.start().then(function () {
+            console.log("Połączono z Hubem SignalR!");
+            document.getElementById("connIndicator").classList.add("conn-active");
+        }).catch(function (err) {
+            return console.error(err.toString());
+        });
+
+        // 6. Funkcje przycisków
+        function sendSettings() {
+            const threshold = parseInt(document.getElementById("in-threshold").value);
+            const duration = parseInt(document.getElementById("in-duration").value);
+            const isAuto = document.getElementById("in-auto").checked;
+
+            connection.invoke("SendSettingsToDevice", threshold, isAuto, duration)
+                .then(() => alert("Ustawienia wysłane do modułu wykonawczego!"))
+                .catch(err => console.error(err.toString()));
+        }
+
+        function forceWater() {
+            connection.invoke("ForceWatering")
+                .then(() => alert("Wymuszono działanie pompy!"))
+                .catch(err => console.error(err.toString()));
+        }
+    </script>
+</body>
+</html>
