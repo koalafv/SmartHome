@@ -19,6 +19,7 @@ public partial class ApplicationContext : DbContext
     public virtual DbSet<User> Users { get; set; }
     public virtual DbSet<DeviceType> DeviceTypes { get; set; }
     public virtual DbSet<Device> Devices { get; set; }
+    public virtual DbSet<DeviceSettings> DeviceSettings { get; set; }
     public virtual DbSet<SensorReading> SensorReadings { get; set; }
     protected override void OnModelCreating ( ModelBuilder modelBuilder )
     {

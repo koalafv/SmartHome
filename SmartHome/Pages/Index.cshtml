@@ -376,16 +376,16 @@
             <div class="controls-grid">
                 <div class="input-group">
                     <label>PRÓG PODLEWANIA (%)</label>
-                    <input type="number" id="in-threshold" value="30" min="0" max="100" />
+                    <input type="number" id="in-threshold" value="@Model.CurrentSettings.Threshold" min="0" max="100" />
                 </div>
                 <div class="input-group">
-                    <label>CZAS POMPY (ms)</label>
-                    <input type="number" id="in-duration" value="2000" step="100" />
+                    <label>CZAS POMPY (s)</label>
+                    <input type="number" id="in-duration" value="@Model.CurrentSettings.PumpDuration" step="100" />
                 </div>
                 <div class="input-group">
                     <label>TRYB AUTOMATYCZNY</label>
                     <label class="switch">
-                        <input type="checkbox" id="in-auto" checked>
+                        <input type="checkbox" id="in-auto" @(Model.CurrentSettings.IsAutoMode ? "checked" : "")>
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -399,26 +399,49 @@
     </div>
 
     <script>
-        const initialLabels = [
-            @if (Model.History != null)
-            {
-                    foreach (var item in Model.History)
-                    {
-                            <text>'@item.ReadingDate.ToString("HH:mm:ss")',</text>
-                    }
-            }
-        ];
+        // [LOG] 1. POBIERANIE DANYCH Z OSTATNICH 24 GODZIN
+        @{
+                var historyLabels = new List<string>();
+                var historyData = new List<double>();
 
-        const initialData = [
-            @if (Model.History != null)
-            {
-                    foreach (var item in Model.History)
-                    {
-                            <text>@(item.Temperature.ToString(System.Globalization.CultureInfo.InvariantCulture)),</text>
-                    }
-            }
-        ];
+                if (Model.History != null)
+                {
+                        try
+                        {
+                                // Wyliczamy czas "równo dobę temu"
+                                var cutoffTime = DateTime.Now.AddHours(-24);
 
+                                // Pobieramy historię z ostatniej doby (dzięki temu mamy z czego wybierać pełne godziny)
+                                var rawList = Model.History
+                                        .Where(h => h.ReadingDate >= cutoffTime)
+                                        .OrderBy(h => h.ReadingDate)
+                                        .ToList();
+
+                                var recentData = rawList
+                                        .GroupBy(h => new { h.ReadingDate.Year, h.ReadingDate.Month, h.ReadingDate.Day, h.ReadingDate.Hour })
+                                        .Select(g => new
+                                        {
+                                                // Formatujemy na "Dzień.Miesiąc Godzina:00"
+                                                Time = g.First().ReadingDate.ToString("dd.MM HH:00"),
+                                                Temp = g.First().Temperature
+                                        })
+                                        .TakeLast(20) // Ucinamy do równo 20 najnowszych godzin
+                                        .ToList();
+
+                                foreach (var item in recentData)
+                                {
+                                        historyLabels.Add(item.Time);
+                                        historyData.Add(item.Temp);
+                                }
+                        }
+                        catch (Exception) { /* Cicha obsługa błędów */ }
+                }
+        }
+
+        const initialLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(historyLabels));
+        const initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(historyData));
+
+        // 2. INICJALIZACJA WYKRESU
         const ctx = document.getElementById('tempChart').getContext('2d');
         const tempChart = new Chart(ctx, {
             type: 'line',
@@ -436,7 +459,7 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false, // [LOG] Pozwala na lepsze skalowanie wykresu na telefonie
+                maintainAspectRatio: false,
                 scales: {
                     y: { grid: { color: '#23352a' }, ticks: { color: '#a0aec0' } },
                     x: { grid: { color: '#23352a' }, ticks: { color: '#a0aec0' } }
@@ -445,6 +468,7 @@
             }
         });
 
+        // 3. LOGIKA SIGNALR I NA ŻYWO
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/pothub")
             .withAutomaticReconnect()
@@ -452,6 +476,7 @@
 
         connection.on("UpdateStatus", function (soilMoisture, tankLevel, temperature, pressure) {
 
+            // Odświeżamy kafelki (co 5 sekund)
             document.getElementById("val-soil").innerText = soilMoisture;
             document.getElementById("val-temp").innerText = temperature.toFixed(1);
             document.getElementById("val-press").innerText = pressure;
@@ -474,19 +499,29 @@
                 soilStatusEl.innerText = "✓ Wilgotność w normie"; soilStatusEl.className = "status-good";
             }
 
+            // [LOG] 4. Aktualizacja wykresu tylko o równej godzinie
             const now = new Date();
-            const timeString = now.getHours().toString().padStart(2, '0') + ':' +
-                               now.getMinutes().toString().padStart(2, '0') + ':' +
-                               now.getSeconds().toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const hour = now.getHours().toString().padStart(2, '0');
 
-            tempChart.data.labels.push(timeString);
-            tempChart.data.datasets[0].data.push(temperature);
+            const currentHourLabel = `${day}.${month} ${hour}:00`;
 
-            if(tempChart.data.labels.length > 15) {
-                tempChart.data.labels.shift();
-                tempChart.data.datasets[0].data.shift();
+            const lastLabelIndex = tempChart.data.labels.length - 1;
+            const lastLabel = lastLabelIndex >= 0 ? tempChart.data.labels[lastLabelIndex] : null;
+
+            if (lastLabel !== currentHourLabel) {
+
+                tempChart.data.labels.push(currentHourLabel);
+                tempChart.data.datasets[0].data.push(temperature);
+
+                if(tempChart.data.labels.length > 20) {
+                    tempChart.data.labels.shift();
+                    tempChart.data.datasets[0].data.shift();
+                }
+
+                tempChart.update();
             }
-            tempChart.update();
         });
 
         connection.start().then(function () {

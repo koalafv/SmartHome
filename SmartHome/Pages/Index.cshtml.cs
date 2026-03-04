@@ -11,7 +11,7 @@ namespace SmartHome.Pages
     public class IndexModel : PageModel
     {
         private readonly ApplicationContext _context;
-
+        public DeviceSettings CurrentSettings { get; set; }
         public List<SensorReading> History { get; set; } = new();
 
         public IndexModel ( ApplicationContext context )
@@ -21,10 +21,14 @@ namespace SmartHome.Pages
 
         public void OnGet ( )
         {
+            CurrentSettings = _context.DeviceSettings.FirstOrDefault() ?? new DeviceSettings { Threshold = 30, PumpDuration = 2000, IsAutoMode = false };
+
+            var cutoff = DateTime.Now.AddHours(-24);
+
             History = _context.SensorReadings
-                              .OrderByDescending(s => s.ReadingDate)
-                              .Take(10)
-                              .ToList();
+                .Where(s => s.ReadingDate >= cutoff)
+                .OrderBy(s => s.ReadingDate)
+                .ToList();
             History.Reverse();
         }
 
