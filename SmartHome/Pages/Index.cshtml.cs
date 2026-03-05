@@ -30,6 +30,7 @@ namespace SmartHome.Pages
                 .OrderBy(s => s.ReadingDate)
                 .ToList();
             History.Reverse();
+
             CurrentWeather = _context.WeatherRecords
                                 .OrderByDescending(x => x.CheckedAt)
                                 .FirstOrDefault();

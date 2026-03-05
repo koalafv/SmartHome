@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.SignalR; // <--- NOWOŚĆ: Do obsługi danych na żywo
 using System;
 using System.Net.Http;
 using System.Text.Json;
@@ -7,19 +8,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using SmartHome.Models;
 using System.Linq;
+using Hubs; // <--- Upewnij się, że masz tu namespace swojego PotHub (może być SmartHome.Hubs)
 
 namespace SmartHome.Services
 {
     public class WeatherFetcherService : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IHubContext<PotHub> _hubContext; // <--- NOWOŚĆ
         private readonly HttpClient _httpClient;
-        // Twój klucz API podpięty na sztywno
         private readonly string _apiKey = "0b123547c8b74085a6472150260503";
 
-        public WeatherFetcherService(IServiceScopeFactory scopeFactory)
+        // DODALIŚMY IHubContext DO KONSTRUKTORA
+        public WeatherFetcherService(IServiceScopeFactory scopeFactory, IHubContext<PotHub> hubContext)
         {
             _scopeFactory = scopeFactory;
+            _hubContext = hubContext;
             _httpClient = new HttpClient();
         }
 
@@ -33,6 +37,8 @@ namespace SmartHome.Services
                 int minutesToAdd = 15 - (now.Minute % 15);
                 var nextRunTime = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0).AddMinutes(minutesToAdd);
                 var delay = nextRunTime - now;
+
+                Console.WriteLine($"[LOG] Następne pobranie pogody dla API punktualnie o: {nextRunTime:HH:mm:ss}");
 
                 await Task.Delay(delay, stoppingToken);
 
@@ -55,7 +61,7 @@ namespace SmartHome.Services
 
                 if (string.IsNullOrWhiteSpace(cityToFetch))
                 {
-                    cityToFetch = "Bytom"; 
+                    cityToFetch = "Bytom";
                 }
 
                 string safeCity = Uri.EscapeDataString(cityToFetch);
@@ -66,20 +72,29 @@ namespace SmartHome.Services
                 using JsonDocument doc = JsonDocument.Parse(response);
                 var root = doc.RootElement;
 
+                var now = DateTime.Now;
+                int remainder = now.Minute % 15;
+
+                int minutesToAddOrSubtract = remainder >= 8 ? (15 - remainder) : -remainder;
+
+                DateTime perfectTime = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0)
+                                        .AddMinutes(minutesToAddOrSubtract);
+
                 var weather = new WeatherRecord
                 {
                     City = root.GetProperty("location").GetProperty("name").GetString(),
                     Temperature = root.GetProperty("current").GetProperty("temp_c").GetDouble(),
                     WindSpeed = root.GetProperty("current").GetProperty("wind_kph").GetDouble(),
-                    // Jako szansę na deszcz możemy wziąć opad w mm z Twojego JSON-a (precip_mm)
                     RainChance = (int)root.GetProperty("current").GetProperty("precip_mm").GetDouble(),
-                    CheckedAt = DateTime.Now
+                    CheckedAt = perfectTime 
                 };
 
                 db.WeatherRecords.Add(weather);
                 await db.SaveChangesAsync();
 
-                Console.WriteLine($"[LOG {DateTime.Now:HH:mm:ss}] Zapisano pogodę w tle: {weather.City} ({weather.Temperature}°C)");
+
+                string timeLabel = weather.CheckedAt.ToString("HH:mm");
+                await _hubContext.Clients.All.SendAsync("UpdateWeather", weather.City, weather.Temperature, weather.WindSpeed, timeLabel);
             }
             catch (Exception ex)
             {
