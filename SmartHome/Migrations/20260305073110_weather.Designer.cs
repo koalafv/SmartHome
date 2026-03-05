@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartHome.Models;
 
@@ -11,9 +12,11 @@ using SmartHome.Models;
 namespace SmartHome.Migrations
 {
     [DbContext(typeof(ApplicationContext))]
-    partial class ApplicationContextModelSnapshot : ModelSnapshot
+    [Migration("20260305073110_weather")]
+    partial class weather
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -191,35 +194,6 @@ namespace SmartHome.Migrations
                     b.HasKey("UsrId");
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("SmartHome.Models.WeatherRecord", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CheckedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("City")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RainChance")
-                        .HasColumnType("int");
-
-                    b.Property<double>("Temperature")
-                        .HasColumnType("float");
-
-                    b.Property<double>("WindSpeed")
-                        .HasColumnType("float");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("WeatherRecords");
                 });
 
             modelBuilder.Entity("Api2", b =>

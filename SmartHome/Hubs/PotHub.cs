@@ -51,13 +51,11 @@ namespace Hubs
         }
 
         // 2. NOWOŚĆ: ZAPIS USTAWIEŃ DO BAZY I WYSYŁKA DO ESP
-        public async Task SendSettingsToDevice ( int threshold, bool isAutoMode, int pumpDuration )
+        // Zmieniona metoda w PotHub.cs
+        public async Task SendSettingsToDevice(int threshold, bool isAutoMode, int pumpDuration, string city)
         {
-            Console.WriteLine($"[LOG {DateTime.Now:HH:mm:ss}] Hub: Zapisywanie ustawien do bazy i wysylanie do ESP...");
-
             try
             {
-                // Szukamy, czy mamy już wpis z ustawieniami
                 var settings = _context.DeviceSettings.FirstOrDefault();
                 if (settings == null)
                 {
@@ -65,23 +63,17 @@ namespace Hubs
                     _context.DeviceSettings.Add(settings);
                 }
 
-                // Aktualizujemy dane
                 settings.Threshold = threshold;
                 settings.IsAutoMode = isAutoMode;
                 settings.PumpDuration = pumpDuration;
+                settings.City = city; 
 
                 await _context.SaveChangesAsync();
-                Console.WriteLine("[DB] Pomyślnie zaktualizowano ustawienia w bazie SQL.");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DB ERROR] Błąd zapisu ustawień do bazy: {ex.Message}");
-            }
+            catch (Exception ex) { /* log */ }
 
-            // Rozsyłamy do wszystkich urządzeń (w tym do ESP)
             await Clients.All.SendAsync("ReceiveSettings", threshold, isAutoMode, pumpDuration);
         }
-
         // 3. NOWOŚĆ: POBIERANIE USTAWIEŃ PRZEZ ESP PRZY STARCIE
         public async Task GetCurrentSettings ( )
         {

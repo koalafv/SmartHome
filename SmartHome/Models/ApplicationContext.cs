@@ -21,6 +21,7 @@ public partial class ApplicationContext : DbContext
     public virtual DbSet<Device> Devices { get; set; }
     public virtual DbSet<DeviceSettings> DeviceSettings { get; set; }
     public virtual DbSet<SensorReading> SensorReadings { get; set; }
+    public virtual DbSet<WeatherRecord> WeatherRecords { get; set; }
     protected override void OnModelCreating ( ModelBuilder modelBuilder )
     {
         modelBuilder.Entity<Api1>(entity =>

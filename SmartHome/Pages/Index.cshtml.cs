@@ -13,7 +13,8 @@ namespace SmartHome.Pages
         private readonly ApplicationContext _context;
         public DeviceSettings CurrentSettings { get; set; }
         public List<SensorReading> History { get; set; } = new();
-
+        public WeatherRecord CurrentWeather { get; set; }
+        public List<WeatherRecord> WeatherHistory { get; set; } 
         public IndexModel ( ApplicationContext context )
         {
             _context = context;
@@ -23,13 +24,21 @@ namespace SmartHome.Pages
         {
             CurrentSettings = _context.DeviceSettings.FirstOrDefault() ?? new DeviceSettings { Threshold = 30, PumpDuration = 2000, IsAutoMode = false };
 
-            var cutoff = DateTime.Now.AddHours(-24);
-
+            var cutoffTime = DateTime.Now.AddHours(-200);
             History = _context.SensorReadings
-                .Where(s => s.ReadingDate >= cutoff)
+                .Where(s => s.ReadingDate >= cutoffTime)
                 .OrderBy(s => s.ReadingDate)
                 .ToList();
             History.Reverse();
+            CurrentWeather = _context.WeatherRecords
+                                .OrderByDescending(x => x.CheckedAt)
+                                .FirstOrDefault();
+
+            WeatherHistory = _context.WeatherRecords
+                                .Where(x => x.CheckedAt >= cutoffTime)
+                                .OrderBy(x => x.CheckedAt)
+                                .ToList();
+
         }
 
         public async Task<IActionResult> OnPostLogoutAsync ( )

@@ -9,5 +9,6 @@ namespace SmartHome.Models
         public int Threshold { get; set; }
         public int PumpDuration { get; set; }
         public bool IsAutoMode { get; set; }
+        public string City { get; set; } = "Radzionków";
     }
 }
