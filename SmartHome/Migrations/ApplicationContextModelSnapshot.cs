@@ -208,6 +208,12 @@ namespace SmartHome.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("Humidity")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Pressure")
+                        .HasColumnType("float");
+
                     b.Property<int>("RainChance")
                         .HasColumnType("int");
 

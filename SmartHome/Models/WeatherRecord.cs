@@ -12,5 +12,7 @@ namespace SmartHome.Models
         public double WindSpeed { get; set; }
         public int RainChance { get; set; }
         public DateTime CheckedAt { get; set; }
+        public double Pressure { get; set; }
+        public int Humidity { get; set; }
     }
 }
